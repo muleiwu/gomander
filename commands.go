@@ -20,6 +20,9 @@ func createRootCommand(config *Config) *cobra.Command {
 		SilenceErrors: true,
 	}
 
+	// 禁用默认的 completion 命令
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	return rootCmd
 }
 
