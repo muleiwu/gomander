@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 const daemonEnvKey = "GOMANDER_DAEMON"
@@ -89,20 +90,55 @@ func readPidFile(config *Config) (int, error) {
 // setupSignalHandler 设置信号处理器，用于优雅退出
 func setupSignalHandler(config *Config, cleanup func()) {
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 
 	go func() {
-		sig := <-sigChan
-		fmt.Printf("Received signal: %v\n", sig)
+		for {
+			sig := <-sigChan
+			fmt.Printf("Received signal: %v\n", sig)
 
-		// 执行清理函数
-		if cleanup != nil {
-			cleanup()
+			switch sig {
+			case syscall.SIGHUP:
+				// SIGHUP 用于重新加载，不退出进程
+				fmt.Println("Reloading configuration...")
+				// 这里可以添加重新加载逻辑
+				// 用户可以在自己的代码中监听 SIGHUP 信号
+
+			case syscall.SIGTERM, syscall.SIGINT:
+				// SIGTERM 或 SIGINT 用于停止进程
+				// 执行清理函数
+				if cleanup != nil {
+					cleanup()
+				}
+
+				// 删除 PID 文件
+				removePidFile(config)
+
+				os.Exit(0)
+			}
 		}
-
-		// 删除 PID 文件
-		removePidFile(config)
-
-		os.Exit(0)
 	}()
+}
+
+// isProcessRunning 检查给定 PID 的进程是否正在运行
+func isProcessRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+
+	// 发送信号 0 来检查进程是否存在
+	err = process.Signal(syscall.Signal(0))
+	return err == nil
+}
+
+// waitForProcessExit 等待进程退出
+func waitForProcessExit(pid int, timeoutSeconds int) bool {
+	for i := 0; i < timeoutSeconds*10; i++ {
+		if !isProcessRunning(pid) {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
 }

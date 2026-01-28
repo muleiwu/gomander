@@ -51,8 +51,13 @@ func Run(fn func(), opts ...Option) {
 
 	// 创建并执行 Cobra 命令
 	rootCmd := createRootCommand(config)
-	stopCmd := createStopCommand(config)
-	rootCmd.AddCommand(stopCmd)
+	rootCmd.AddCommand(
+		createStartCommand(config),
+		createStopCommand(config),
+		createRestartCommand(config),
+		createReloadCommand(config),
+		createStatusCommand(config),
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
