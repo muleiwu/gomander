@@ -1,26 +1,26 @@
 # Gomander
 
-Gomander 是一个基于 [Cobra](https://github.com/spf13/cobra) 的 Go 进程守护化库，让你的程序轻松支持前台运行和后台 daemon 模式，并提供完整的进程生命周期管理。
+Gomander is a Go process daemonization library based on [Cobra](https://github.com/spf13/cobra), enabling your program to easily support foreground and background daemon modes with complete process lifecycle management.
 
-## 功能特性
+## Features
 
-- 🚀 **子命令架构** - 基于 Cobra，提供 `start`、`stop`、`restart`、`reload`、`status` 子命令
-- 🔄 **守护进程模式** - 支持 `-d` 参数将进程后台运行
-- 📁 **PID 文件管理** - 自动创建和清理 PID 文件
-- 📝 **日志重定向** - 守护模式下自动将输出重定向到日志文件
-- 🛑 **优雅退出** - 支持 SIGTERM、SIGINT 信号优雅停止
-- ♻️ **热重载** - 支持 SIGHUP 信号触发配置重载
-- ⚙️ **灵活配置** - 使用函数选项模式自定义 PID 和日志文件路径
+- 🚀 **Subcommand Architecture** - Built on Cobra, providing `start`, `stop`, `restart`, `reload`, `status` subcommands
+- 🔄 **Daemon Mode** - Support `-d` flag to run process in background
+- 📁 **PID File Management** - Automatic creation and cleanup of PID files
+- 📝 **Log Redirection** - Automatically redirect output to log file in daemon mode
+- 🛑 **Graceful Shutdown** - Support SIGTERM and SIGINT signals for graceful stopping
+- ♻️ **Hot Reload** - Support SIGHUP signal to trigger configuration reload
+- ⚙️ **Flexible Configuration** - Use functional options pattern to customize PID and log file paths
 
-## 安装
+## Installation
 
 ```bash
 go get github.com/muleiwu/gomander
 ```
 
-## 快速开始
+## Quick Start
 
-### 基础用法
+### Basic Usage
 
 ```go
 package main
@@ -34,22 +34,22 @@ import (
 
 func main() {
     gomander.Run(func() {
-        fmt.Println("应用程序启动...")
+        fmt.Println("Application starting...")
         
         for {
             time.Sleep(5 * time.Second)
-            fmt.Println("运行中...")
+            fmt.Println("Running...")
         }
     })
 }
 ```
 
-### 自定义配置
+### Custom Configuration
 
 ```go
 func main() {
     gomander.Run(func() {
-        // 你的业务逻辑
+        // Your business logic
     }, 
         gomander.WithPidFile("./myapp.pid"),
         gomander.WithLogFile("./myapp.log"),
@@ -57,149 +57,149 @@ func main() {
 }
 ```
 
-## 命令行使用
+## Command Line Usage
 
-编译你的程序后，即可使用以下子命令：
+After compiling your program, you can use the following subcommands:
 
 ```bash
 go build -o myapp
 ```
 
-### start - 启动进程
+### start - Start Process
 
 ```bash
-# 前台运行（日志输出到终端）
+# Run in foreground (logs output to terminal)
 ./myapp start
 
-# 后台守护进程运行
+# Run as background daemon
 ./myapp start -d
-# 或
+# or
 ./myapp start --daemon
 ```
 
-守护模式下：
-- 进程在后台运行，脱离终端
-- 日志重定向到日志文件（默认 `./gomander.log`）
-- PID 保存到文件（默认 `./gomander.pid`）
+In daemon mode:
+- Process runs in background, detached from terminal
+- Logs redirected to log file (default `./gomander.log`)
+- PID saved to file (default `./gomander.pid`)
 
-### stop - 停止进程
+### stop - Stop Process
 
 ```bash
 ./myapp stop
 ```
 
-读取 PID 文件并发送 SIGTERM 信号，优雅停止守护进程。
+Reads the PID file and sends SIGTERM signal to gracefully stop the daemon process.
 
-### restart - 重启进程
+### restart - Restart Process
 
 ```bash
 ./myapp restart
 ```
 
-停止当前运行的进程，然后以守护模式重新启动。
+Stops the currently running process, then restarts it in daemon mode.
 
-### reload - 重载配置
+### reload - Reload Configuration
 
 ```bash
 ./myapp reload
 ```
 
-向守护进程发送 SIGHUP 信号，可用于触发配置重载（需要在业务代码中实现重载逻辑）。
+Sends SIGHUP signal to the daemon process, can be used to trigger configuration reload (requires reload logic implementation in business code).
 
-### status - 查看状态
+### status - Check Status
 
 ```bash
 ./myapp status
 ```
 
-显示守护进程的当前状态，包括：
-- 运行状态（running / stopped）
-- 进程 PID
-- PID 文件路径
-- 日志文件路径
+Displays the current status of the daemon process, including:
+- Running state (running / stopped)
+- Process PID
+- PID file path
+- Log file path
 
-## 配置选项
+## Configuration Options
 
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `WithPidFile(path)` | PID 文件路径 | `./gomander.pid` |
-| `WithLogFile(path)` | 日志文件路径 | `./gomander.log` |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `WithPidFile(path)` | PID file path | `./gomander.pid` |
+| `WithLogFile(path)` | Log file path | `./gomander.log` |
 
-## 工作原理
+## How It Works
 
-### 前台模式 (start)
-
-```
-myapp start → 直接执行用户函数 → 日志输出到终端
-```
-
-### 守护模式 (start -d)
+### Foreground Mode (start)
 
 ```
-myapp start -d → Fork 子进程 → 父进程退出
-                      ↓
-                子进程（守护进程）
-                      ↓
-                创建新会话（setsid）
-                      ↓
-                写入 PID 文件
-                      ↓
-                重定向输出到日志文件
-                      ↓
-                执行用户函数
+myapp start → Execute user function directly → Logs output to terminal
 ```
 
-### 信号处理
+### Daemon Mode (start -d)
 
-| 信号 | 行为 |
-|------|------|
-| SIGTERM | 优雅退出，清理 PID 文件 |
-| SIGINT | 优雅退出，清理 PID 文件 |
-| SIGHUP | 触发重载（不退出进程） |
+```
+myapp start -d → Fork child process → Parent process exits
+                      ↓
+                Child process (daemon)
+                      ↓
+                Create new session (setsid)
+                      ↓
+                Write PID file
+                      ↓
+                Redirect output to log file
+                      ↓
+                Execute user function
+```
 
-## 完整示例
+### Signal Handling
 
-查看 [example/main.go](example/main.go) 获取完整示例。
+| Signal | Behavior |
+|--------|----------|
+| SIGTERM | Graceful exit, cleanup PID file |
+| SIGINT | Graceful exit, cleanup PID file |
+| SIGHUP | Trigger reload (does not exit process) |
+
+## Complete Example
+
+See [example/main.go](example/main.go) for a complete example.
 
 ```bash
 cd example
 go build -o myapp
 
-# 启动守护进程
+# Start daemon
 ./myapp start -d
 
-# 查看状态
+# Check status
 ./myapp status
 
-# 查看日志
+# View logs
 tail -f myapp.log
 
-# 重载配置
+# Reload configuration
 ./myapp reload
 
-# 重启进程
+# Restart process
 ./myapp restart
 
-# 停止进程
+# Stop process
 ./myapp stop
 ```
 
-## 环境变量
+## Environment Variables
 
-| 变量 | 说明 |
-|------|------|
-| `GOMANDER_DAEMON=1` | 内部使用，标识当前进程是守护进程子进程 |
+| Variable | Description |
+|----------|-------------|
+| `GOMANDER_DAEMON=1` | Internal use, identifies current process as daemon child process |
 
-## 注意事项
+## Notes
 
-1. 确保有权限在指定路径创建 PID 和日志文件
-2. 停止进程前确保 PID 文件存在且进程正在运行
-3. 信号处理会自动清理 PID 文件
-4. `restart` 命令会等待原进程退出（最多 10 秒）后再启动新进程
+1. Ensure you have permission to create PID and log files at the specified paths
+2. Before stopping process, ensure PID file exists and process is running
+3. Signal handling automatically cleans up PID file
+4. `restart` command waits for original process to exit (maximum 10 seconds) before starting new process
 
-## 依赖
+## Dependencies
 
-- [cobra](https://github.com/spf13/cobra) - 命令行框架
+- [cobra](https://github.com/spf13/cobra) - Command line framework
 
 ## License
 
