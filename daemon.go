@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -17,8 +18,19 @@ func isDaemonChild() bool {
 	return os.Getenv(daemonEnvKey) == "1"
 }
 
+// ensureDir 确保文件所在的目录存在
+func ensureDir(filePath string) error {
+	dir := filepath.Dir(filePath)
+	return os.MkdirAll(dir, 0755)
+}
+
 // forkDaemon 将当前进程 fork 为守护进程
 func forkDaemon(config *Config) error {
+	// 确保日志文件所在目录存在
+	if err := ensureDir(config.LogFile); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
 	// 打开日志文件
 	logFile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -54,6 +66,11 @@ func forkDaemon(config *Config) error {
 
 // writePidFile 写入 PID 文件
 func writePidFile(config *Config) error {
+	// 确保 PID 文件所在目录存在
+	if err := ensureDir(config.PidFile); err != nil {
+		return fmt.Errorf("failed to create PID directory: %w", err)
+	}
+
 	pid := os.Getpid()
 	content := []byte(strconv.Itoa(pid))
 

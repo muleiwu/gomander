@@ -31,8 +31,8 @@ func WithLogFile(path string) Option {
 // defaultConfig 返回默认配置
 func defaultConfig() *Config {
 	return &Config{
-		PidFile: "./gomander.pid",
-		LogFile: "./gomander.log",
+		PidFile: "./runtime/gomander.pid",
+		LogFile: "./runtime/logs/gomander.log",
 	}
 }
 
