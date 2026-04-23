@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"syscall"
@@ -48,10 +47,8 @@ func forkDaemon(config *Config) error {
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
-	// 创建新会话，脱离终端
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
+	// 设置平台相关的进程属性（脱离终端/新会话等）
+	setDaemonSysProcAttr(cmd)
 
 	// 启动子进程
 	if err := cmd.Start(); err != nil {
@@ -107,20 +104,22 @@ func readPidFile(config *Config) (int, error) {
 // setupSignalHandler 设置信号处理器，用于优雅退出
 func setupSignalHandler(config *Config, cleanup func()) {
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
+	notifyShutdownSignals(sigChan)
 
 	go func() {
 		for {
 			sig := <-sigChan
 			fmt.Printf("Received signal: %v\n", sig)
 
-			switch sig {
-			case syscall.SIGHUP:
+			if isReloadSignal(sig) {
 				// SIGHUP 用于重新加载，不退出进程
 				fmt.Println("Reloading configuration...")
 				// 这里可以添加重新加载逻辑
 				// 用户可以在自己的代码中监听 SIGHUP 信号
+				continue
+			}
 
+			switch sig {
 			case syscall.SIGTERM, syscall.SIGINT:
 				// SIGTERM 或 SIGINT 用于停止进程
 				// 执行清理函数
@@ -139,14 +138,7 @@ func setupSignalHandler(config *Config, cleanup func()) {
 
 // isProcessRunning 检查给定 PID 的进程是否正在运行
 func isProcessRunning(pid int) bool {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-
-	// 发送信号 0 来检查进程是否存在
-	err = process.Signal(syscall.Signal(0))
-	return err == nil
+	return processRunning(pid)
 }
 
 // waitForProcessExit 等待进程退出
