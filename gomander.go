@@ -1,14 +1,19 @@
 package gomander
 
 import (
+	"fmt"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 // Config 存储 gomander 的配置
 type Config struct {
-	PidFile  string
-	LogFile  string
-	userFunc func()
+	PidFile    string
+	LogFile    string
+	userFunc   func()
+	commands   []*cobra.Command
+	daemonMode bool
 }
 
 // Option 是配置选项函数类型
@@ -25,6 +30,14 @@ func WithPidFile(path string) Option {
 func WithLogFile(path string) Option {
 	return func(c *Config) {
 		c.LogFile = path
+	}
+}
+
+// WithCommands 注册额外的顶层 Cobra 子命令。
+// 自定义命令独立执行，不参与 gomander 的 daemon 生命周期管理。
+func WithCommands(commands ...*cobra.Command) Option {
+	return func(c *Config) {
+		c.commands = append(c.commands, commands...)
 	}
 }
 
@@ -50,14 +63,11 @@ func Run(fn func(), opts ...Option) {
 	}
 
 	// 创建并执行 Cobra 命令
-	rootCmd := createRootCommand(config)
-	rootCmd.AddCommand(
-		createStartCommand(config),
-		createStopCommand(config),
-		createRestartCommand(config),
-		createReloadCommand(config),
-		createStatusCommand(config),
-	)
+	rootCmd, err := buildRootCommand(config)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

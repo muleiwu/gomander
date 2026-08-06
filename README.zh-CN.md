@@ -5,6 +5,7 @@ Gomander 是一个基于 [Cobra](https://github.com/spf13/cobra) 的 Go 进程�
 ## 功能特性
 
 - 🚀 **子命令架构** - 基于 Cobra，提供 `start`、`stop`、`restart`、`reload`、`status` 子命令
+- 🧩 **自定义命令** - 通过 `WithCommands` 注册带参数、flags 和嵌套结构的 Cobra 命令
 - 🔄 **守护进程模式** - 支持 `-d` 参数将进程后台运行
 - 📁 **PID 文件管理** - 自动创建和清理 PID 文件
 - 📝 **日志重定向** - 守护模式下自动将输出重定向到日志文件
@@ -57,6 +58,30 @@ func main() {
 }
 ```
 
+### 注册自定义命令
+
+可以通过 `WithCommands` 注册一个或多个顶层 Cobra 命令。自定义命令保留 Cobra 的参数校验、flags、aliases 和嵌套子命令能力：
+
+```go
+import "github.com/spf13/cobra"
+
+func main() {
+    versionCmd := &cobra.Command{
+        Use:   "version",
+        Short: "显示应用版本",
+        Run: func(cmd *cobra.Command, args []string) {
+            fmt.Println("myapp v1.0.0")
+        },
+    }
+
+    gomander.Run(func() {
+        // 你的业务逻辑
+    }, gomander.WithCommands(versionCmd))
+}
+```
+
+多次调用 `WithCommands` 会累积注册命令。自定义命令独立执行，不会自动参与 daemon、PID、停止或重载生命周期。命令名及 aliases 不能与 `start`、`stop`、`restart`、`reload`、`status`、`help` 或其他已注册命令冲突；无效注册会输出错误并以状态码 1 退出。
+
 ## 命令行使用
 
 编译你的程序后，即可使用以下子命令：
@@ -79,8 +104,8 @@ go build -o myapp
 
 守护模式下：
 - 进程在后台运行，脱离终端
-- 日志重定向到日志文件（默认 `./gomander.log`）
-- PID 保存到文件（默认 `./gomander.pid`）
+- 日志重定向到日志文件（默认 `./runtime/logs/gomander.log`）
+- PID 保存到文件（默认 `./runtime/gomander.pid`）
 
 ### stop - 停止进程
 
@@ -122,8 +147,9 @@ go build -o myapp
 
 | 选项 | 说明 | 默认值 |
 |------|------|--------|
-| `WithPidFile(path)` | PID 文件路径 | `./gomander.pid` |
-| `WithLogFile(path)` | 日志文件路径 | `./gomander.log` |
+| `WithPidFile(path)` | PID 文件路径 | `./runtime/gomander.pid` |
+| `WithLogFile(path)` | 日志文件路径 | `./runtime/logs/gomander.log` |
+| `WithCommands(commands...)` | 注册额外的顶层 Cobra 命令 | 无 |
 
 ## 工作原理
 

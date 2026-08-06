@@ -5,9 +5,18 @@ import (
 	"time"
 
 	"github.com/muleiwu/gomander"
+	"github.com/spf13/cobra"
 )
 
 func main() {
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Show the application version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("gomander example v1.0.0")
+		},
+	}
+
 	// 使用 gomander 运行业务逻辑
 	gomander.Run(func() {
 		fmt.Println("应用程序启动...")
@@ -25,5 +34,9 @@ func main() {
 				fmt.Printf("[%s] 心跳 #%d\n", time.Now().Format("2006-01-02 15:04:05"), count)
 			}
 		}
-	}, gomander.WithPidFile("./myapp.pid"), gomander.WithLogFile("./myapp.log"))
+	},
+		gomander.WithPidFile("./myapp.pid"),
+		gomander.WithLogFile("./myapp.log"),
+		gomander.WithCommands(versionCmd),
+	)
 }

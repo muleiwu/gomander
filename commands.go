@@ -3,15 +3,14 @@ package gomander
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
 )
 
-var daemonMode bool
-
 // createRootCommand 创建根命令
-func createRootCommand(config *Config) *cobra.Command {
+func createRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           os.Args[0],
 		Short:         "Process manager with daemon support",
@@ -24,6 +23,71 @@ func createRootCommand(config *Config) *cobra.Command {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
 	return rootCmd
+}
+
+// buildRootCommand 统一组装并校验内置命令和调用者注册的命令。
+func buildRootCommand(config *Config) (*cobra.Command, error) {
+	rootCmd := createRootCommand()
+	commands := []*cobra.Command{
+		createStartCommand(config),
+		createStopCommand(config),
+		createRestartCommand(config),
+		createReloadCommand(config),
+		createStatusCommand(config),
+	}
+	commands = append(commands, config.commands...)
+
+	if err := validateCommands(commands); err != nil {
+		return nil, err
+	}
+
+	rootCmd.AddCommand(commands...)
+	return rootCmd, nil
+}
+
+type commandTokenOwner struct {
+	token   string
+	command string
+}
+
+// validateCommands 在修改根命令前校验所有顶层命令，避免产生部分注册的命令树。
+func validateCommands(commands []*cobra.Command) error {
+	owners := []commandTokenOwner{{token: "help", command: "help"}}
+
+	for index, command := range commands {
+		if command == nil {
+			return fmt.Errorf("invalid command registration: command at index %d is nil", index)
+		}
+
+		name := command.Name()
+		if name == "" {
+			return fmt.Errorf("invalid command registration: command at index %d has an empty name", index)
+		}
+
+		tokens := append([]string{name}, command.Aliases...)
+		for _, token := range tokens {
+			for _, owner := range owners {
+				if commandTokensEqual(token, owner.token) {
+					return fmt.Errorf(
+						"invalid command registration: token %q for command %q conflicts with command %q",
+						token,
+						name,
+						owner.command,
+					)
+				}
+			}
+			owners = append(owners, commandTokenOwner{token: token, command: name})
+		}
+	}
+
+	return nil
+}
+
+func commandTokensEqual(left, right string) bool {
+	if cobra.EnableCaseInsensitive {
+		return strings.EqualFold(left, right)
+	}
+	return left == right
 }
 
 // createStartCommand 创建 start 子命令
@@ -40,7 +104,7 @@ func createStartCommand(config *Config) *cobra.Command {
 	}
 
 	// 添加 -d, --daemon flag
-	startCmd.Flags().BoolVarP(&daemonMode, "daemon", "d", false, "Run in daemon mode")
+	startCmd.Flags().BoolVarP(&config.daemonMode, "daemon", "d", false, "Run in daemon mode")
 
 	return startCmd
 }
@@ -48,7 +112,7 @@ func createStartCommand(config *Config) *cobra.Command {
 // runStartCommand 执行 start 命令逻辑
 func runStartCommand(config *Config) error {
 	// 如果是 daemon 模式且不是守护进程子进程，则 fork
-	if daemonMode && !isDaemonChild() {
+	if config.daemonMode && !isDaemonChild() {
 		// Fork 自身为守护进程
 		if err := forkDaemon(config); err != nil {
 			return fmt.Errorf("failed to fork daemon: %w", err)
@@ -163,7 +227,7 @@ func runRestartCommand(config *Config) error {
 
 	// 以 daemon 模式启动
 	fmt.Println("Starting daemon process...")
-	daemonMode = true
+	config.daemonMode = true
 	return runStartCommand(config)
 }
 
